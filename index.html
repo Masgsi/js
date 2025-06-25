@@ -1,184 +1,82 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suspect Score</title>
+    <title>My Suspect Score</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
-            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-            color: white;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
         }
         .container {
             text-align: center;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 3rem;
-            border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            max-width: 90%;
-            width: 500px;
-        }
-        h1 {
-            margin-top: 0;
-            font-size: 2.2rem;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            padding: 2rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         #score {
-            font-size: 6rem;
+            font-size: 3rem;
             font-weight: bold;
-            margin: 1.5rem 0;
-            color: white;
-            text-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            transition: all 0.5s ease;
-        }
-        .loading {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 1.5rem;
-        }
-        .error {
-            color: #ff6b6b;
-        }
-        .info {
-            background: rgba(255, 255, 255, 0.15);
-            padding: 1rem;
-            border-radius: 10px;
-            margin-top: 1.5rem;
-            font-size: 0.9rem;
-        }
-        .risk-level {
+            color: #2c3e50;
             margin-top: 1rem;
-            font-weight: bold;
-            font-size: 1.2rem;
         }
-        .low { color: #4cd964; }
-        .medium { color: #ffcc00; }
-        .high { color: #ff3b30; }
-        .footer {
-            margin-top: 2rem;
-            font-size: 0.8rem;
-            opacity: 0.7;
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Session Risk Assessment</h1>
-        <div id="score" class="loading">Analyzing...</div>
-        <div id="risk-level" class="risk-level"></div>
-        
-        <div class="info">
-            <div id="details"></div>
-        </div>
-        
-        <div class="footer">
-            Protected by FingerprintJS • Updated in real-time
-        </div>
+        <h1>My Suspect Score</h1>
+        <div class="loader" id="loader"></div>
+        <div id="score"></div>
     </div>
 
     <script type="module">
         // Конфигурация
-        const PUBLIC_API_KEY = 'Ki8goVOk05JAcbWpUsmw';
-        const SECRET_API_KEY = 'Gj440uByeFLwlMfK4CZN';
-        
-        // Элементы DOM
-        const scoreElement = document.getElementById('score');
-        const detailsElement = document.getElementById('details');
-        const riskLevelElement = document.getElementById('risk-level');
-        
-        // Функция для оценки уровня риска
-        function getRiskLevel(score) {
-            if (score === 0) return { level: 'LOW', text: 'Low Risk', class: 'low' };
-            if (score <= 10) return { level: 'MODERATE', text: 'Moderate Risk', class: 'medium' };
-            if (score <= 20) return { level: 'HIGH', text: 'High Risk', class: 'high' };
-            return { level: 'CRITICAL', text: 'Critical Risk', class: 'high' };
-        }
+        const PUBLIC_KEY = 'Ki8goVOk05JAcbWpUsmw';
+        const PROXY_URL = 'https://workers-playground-shiny-band-4716.vruvrum25.workers.dev/'; // Замените на ваш URL Worker
 
-        // Основная функция получения Suspect Score
-        async function getSuspectScore() {
+        // Инициализация FingerprintJS
+        const init = async () => {
             try {
-                // 1. Загружаем FingerprintJS
-                const { load } = await import(`https://fpjscdn.net/v3/${PUBLIC_API_KEY}`);
+                const { load } = await import(`https://fpjscdn.net/v3/${PUBLIC_KEY}`);
                 const fp = await load({ region: "eu" });
                 
-                // 2. Получаем идентификатор запроса
                 const result = await fp.get();
                 const requestId = result.requestId;
                 
-                // 3. Запрашиваем Suspect Score через Server API
-                const response = await fetch(`https://eu.api.fpjs.io/events/${requestId}`, {
-                    method: 'GET',
-                    headers: {
-                        'Auth-API-Key': SECRET_API_KEY,
-                        'Content-Type': 'application/json'
-                    }
-                });
+                // Получаем Suspect Score через прокси
+                const proxyResponse = await fetch(`${PROXY_URL}?requestId=${requestId}`);
+                const { suspectScore } = await proxyResponse.json();
                 
-                if (!response.ok) {
-                    throw new Error(`API error: ${response.status}`);
-                }
-                
-                const eventData = await response.json();
-                console.log("Event data:", eventData);
-                
-                // 4. Извлекаем Suspect Score
-                const suspectScore = eventData?.products?.identification?.data?.suspectScore?.result;
-                
-                if (typeof suspectScore === 'number') {
-                    // Отображаем результат
-                    scoreElement.innerText = suspectScore;
-                    scoreElement.className = '';
-                    
-                    // Определяем уровень риска
-                    const risk = getRiskLevel(suspectScore);
-                    riskLevelElement.innerHTML = `
-                        <span class="${risk.class}">${risk.text}</span>
-                    `;
-                    
-                    // Дополнительная информация
-                    const signals = eventData?.products?.identification?.data?.smartSignals || {};
-                    const activeSignals = Object.entries(signals)
-                        .filter(([_, value]) => value && value !== 'notDetected')
-                        .map(([key]) => key);
-                    
-                    detailsElement.innerHTML = `
-                        <p><strong>Session ID:</strong> ${requestId}</p>
-                        <p><strong>Detected at:</strong> ${new Date().toLocaleTimeString()}</p>
-                        ${activeSignals.length ? `
-                            <p><strong>Detected Signals:</strong> ${activeSignals.join(', ')}</p>
-                        ` : '<p>No suspicious signals detected</p>'}
-                    `;
-                    
-                    // Анимация изменения цвета в зависимости от риска
-                    if (risk.level === 'CRITICAL' || risk.level === 'HIGH') {
-                        scoreElement.style.color = '#ff3b30';
-                    } else if (risk.level === 'MODERATE') {
-                        scoreElement.style.color = '#ffcc00';
-                    }
-                } else {
-                    throw new Error('Suspect Score not available in response');
-                }
+                // Отображаем результат
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('score').textContent = suspectScore;
             } catch (error) {
-                console.error("Error:", error);
-                scoreElement.innerText = '!';
-                scoreElement.className = 'error';
-                detailsElement.innerHTML = `
-                    <p>Error loading security assessment</p>
-                    <p>${error.message || 'Please try again later'}</p>
-                `;
-                riskLevelElement.innerHTML = '<span class="high">Assessment Failed</span>';
+                console.error('Error:', error);
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('score').textContent = 'Error: ' + error.message;
+                document.getElementById('score').style.color = 'red';
             }
-        }
+        };
 
-        // Инициализация
-        getSuspectScore();
+        init();
     </script>
 </body>
 </html>
