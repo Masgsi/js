@@ -137,23 +137,22 @@
         </footer>
     </div>
 
-    <!-- Подключаем FingerprintJS Pro -->
-    <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs-pro@3/dist/fp.min.js"></script>
     <script>
-        // Конфигурация (ЗАМЕНИТЕ НА СВОЙ КЛЮЧ)
-        const FP_PUBLIC_KEY = 'Ki8goVOk05JAcbWpUsmw';
+        // Конфигурация с ВАШИМ API ключом
+        const FP_API_KEY = 'Ki8goVOk05JAcbWpUsmw';
         
         // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', async () => {
             try {
-                // Загружаем SDK
-                const fpPromise = FingerprintJS.load({
-                    apiKey: FP_PUBLIC_KEY,
-                    region: 'eu' // Используйте 'us' или 'ap' если нужно
+                // Динамический импорт SDK (правильный метод)
+                const FingerprintJS = await import(`https://fpjscdn.net/v3/${FP_API_KEY}`);
+                
+                // Загружаем агент
+                const fp = await FingerprintJS.load({
+                    region: 'eu'
                 });
                 
                 // Получаем данные
-                const fp = await fpPromise;
                 const result = await fp.get();
                 
                 // Показываем результат
