@@ -94,12 +94,19 @@
             color: #7f8c8d;
             font-size: 14px;
         }
+        .warning {
+            background-color: #fff8e6;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: left;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Fraud Score Checker</h1>
-        <p class="subtitle">Определение уровня риска в реальном времени</p>
+        <p class="subtitle">Точный анализ рисков в реальном времени</p>
         
         <div id="loader" class="loader"></div>
         
@@ -130,6 +137,12 @@
                     <p><strong>Бот:</strong> <span id="botSignal" class="signal"></span></p>
                 </div>
             </div>
+            
+            <div class="warning">
+                <h3>Важная информация</h3>
+                <p>Suspect Score в API представлен в диапазоне 0-1 (дробное число), но в панели управления отображается как 0-100 (проценты).</p>
+                <p>Например: 0.04 в API = 4% в панели управления</p>
+            </div>
         </div>
         
         <footer>
@@ -144,7 +157,7 @@
         // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', async () => {
             try {
-                // Динамический импорт SDK (правильный метод)
+                // Динамический импорт SDK
                 const FingerprintJS = await import(`https://fpjscdn.net/v3/${FP_API_KEY}`);
                 
                 // Загружаем агент
@@ -152,8 +165,10 @@
                     region: 'eu'
                 });
                 
-                // Получаем данные
-                const result = await fp.get();
+                // Получаем данные с расширенной информацией
+                const result = await fp.get({
+                    extendedResult: true
+                });
                 
                 // Показываем результат
                 displayResults(result);
@@ -174,25 +189,40 @@
         // Отображение результатов
         function displayResults(data) {
             // Основные данные
-            document.getElementById('score').textContent = data.suspectScore || 0;
+            const suspectScore = data.suspectScore || 0;
+            const suspectScorePercent = Math.round(suspectScore * 100);
+            
+            document.getElementById('score').textContent = suspectScorePercent;
             document.getElementById('visitorId').textContent = data.visitorId;
             document.getElementById('requestId').textContent = data.requestId;
-            document.getElementById('confidence').textContent = data.confidence.score.toFixed(2);
+            
+            // Проверяем наличие confidence
+            if (data.confidence && data.confidence.score) {
+                document.getElementById('confidence').textContent = data.confidence.score.toFixed(2);
+            } else {
+                document.getElementById('confidence').textContent = 'N/A';
+            }
+            
+            // Проверяем наличие smart signals
+            const vpn = data.vpn ? data.vpn : false;
+            const incognito = data.incognito ? data.incognito : false;
+            const tampering = data.tampering ? data.tampering : false;
+            const bot = data.bot ? data.bot : false;
             
             // Сигналы
-            displaySignal('vpnSignal', data.vpn);
-            displaySignal('incognitoSignal', data.incognito);
-            displaySignal('tamperingSignal', data.tampering);
-            displaySignal('botSignal', data.bot);
+            displaySignal('vpnSignal', vpn);
+            displaySignal('incognitoSignal', incognito);
+            displaySignal('tamperingSignal', tampering);
+            displaySignal('botSignal', bot);
             
             // Оценка риска
             const riskElement = document.getElementById('riskMessage');
             let riskMessage = '';
             
-            if (data.suspectScore === 0) {
+            if (suspectScorePercent === 0) {
                 riskMessage = '✅ Ваше устройство выглядит безопасно';
                 document.getElementById('score').className = 'score-value score-0';
-            } else if (data.suspectScore < 0.5) {
+            } else if (suspectScorePercent < 50) {
                 riskMessage = '⚠️ Умеренный уровень риска';
                 document.getElementById('score').className = 'score-value score-1';
             } else {
@@ -207,10 +237,10 @@
             signalsContainer.innerHTML = '';
             
             const activeSignals = [];
-            if (data.vpn) activeSignals.push('VPN');
-            if (data.incognito) activeSignals.push('Инкогнито');
-            if (data.tampering) activeSignals.push('Подделка данных');
-            if (data.bot) activeSignals.push('Бот');
+            if (vpn) activeSignals.push('VPN');
+            if (incognito) activeSignals.push('Инкогнито');
+            if (tampering) activeSignals.push('Подделка данных');
+            if (bot) activeSignals.push('Бот');
             
             if (activeSignals.length > 0) {
                 signalsContainer.innerHTML += `
@@ -219,6 +249,8 @@
                         ${activeSignals.map(s => `<span class="signal signal-true">${s}</span>`).join(' ')}
                     </div>
                 `;
+            } else if (suspectScorePercent > 0) {
+                signalsContainer.innerHTML = `<p>🔍 Обнаружены скрытые сигналы риска</p>`;
             } else {
                 signalsContainer.innerHTML = `<p>⛔ Активных сигналов угроз не обнаружено</p>`;
             }
@@ -226,6 +258,9 @@
             // Показываем результат
             document.getElementById('loader').classList.add('hidden');
             document.getElementById('result').classList.remove('hidden');
+            
+            // Выводим полные данные в консоль для отладки
+            console.log('FingerprintJS Pro Full Result:', data);
         }
         
         // Форматирование сигналов
