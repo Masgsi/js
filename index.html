@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fraud Score Checker</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+            padding: 30px;
+            margin-top: 40px;
+            text-align: center;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 40px;
+        }
+        .result-box {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+            transition: all 0.3s ease;
+        }
+        .score-value {
+            font-size: 72px;
+            font-weight: 800;
+            margin: 20px 0;
+            transition: color 0.3s;
+        }
+        .score-0 { color: #2ecc71; } /* Зеленый */
+        .score-1 { color: #f39c12; } /* Желтый */
+        .score-2 { color: #e74c3c; } /* Красный */
+        .details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+            text-align: left;
+        }
+        .detail-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.03);
+        }
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            margin: 30px auto;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hidden {
+            display: none;
+        }
+        .signal {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin: 0 5px;
+        }
+        .signal-true {
+            background-color: #ffebe9;
+            color: #cf222e;
+        }
+        .signal-false {
+            background-color: #e6f7f0;
+            color: #1a7f37;
+        }
+        footer {
+            margin-top: 40px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fraud Score Checker</h1>
+        <p class="subtitle">Определение уровня риска в реальном времени</p>
+        
+        <div id="loader" class="loader"></div>
+        
+        <div id="result" class="hidden">
+            <div class="result-box">
+                <h2>Ваш Fraud Score</h2>
+                <div id="score" class="score-value">0</div>
+                
+                <div class="risk-assessment">
+                    <div id="riskMessage"></div>
+                    <div id="signals" style="margin-top: 20px;"></div>
+                </div>
+            </div>
+            
+            <div class="details">
+                <div class="detail-card">
+                    <h3>Основные данные</h3>
+                    <p><strong>Visitor ID:</strong> <span id="visitorId"></span></p>
+                    <p><strong>Request ID:</strong> <span id="requestId"></span></p>
+                    <p><strong>Стабильность ID:</strong> <span id="confidence"></span></p>
+                </div>
+                
+                <div class="detail-card">
+                    <h3>Сигналы</h3>
+                    <p><strong>VPN:</strong> <span id="vpnSignal" class="signal"></span></p>
+                    <p><strong>Инкогнито:</strong> <span id="incognitoSignal" class="signal"></span></p>
+                    <p><strong>Подделка данных:</strong> <span id="tamperingSignal" class="signal"></span></p>
+                    <p><strong>Бот:</strong> <span id="botSignal" class="signal"></span></p>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Проверка выполняется с помощью FingerprintJS Pro • Данные обновляются при каждом посещении</p>
+        </footer>
+    </div>
+
+    <!-- Подключаем FingerprintJS Pro -->
+    <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs-pro@3/dist/fp.min.js"></script>
+    <script>
+        // Конфигурация (ЗАМЕНИТЕ НА СВОЙ КЛЮЧ)
+        const FP_PUBLIC_KEY = 'Ki8goVOk05JAcbWpUsmw';
+        
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Загружаем SDK
+                const fpPromise = FingerprintJS.load({
+                    apiKey: FP_PUBLIC_KEY,
+                    region: 'eu' // Используйте 'us' или 'ap' если нужно
+                });
+                
+                // Получаем данные
+                const fp = await fpPromise;
+                const result = await fp.get();
+                
+                // Показываем результат
+                displayResults(result);
+            } catch (error) {
+                console.error('Ошибка FingerprintJS:', error);
+                document.getElementById('loader').classList.add('hidden');
+                document.getElementById('result').innerHTML = `
+                    <div class="error">
+                        <h2>Ошибка проверки</h2>
+                        <p>${error.message}</p>
+                        <p>Попробуйте обновить страницу</p>
+                    </div>
+                `;
+                document.getElementById('result').classList.remove('hidden');
+            }
+        });
+        
+        // Отображение результатов
+        function displayResults(data) {
+            // Основные данные
+            document.getElementById('score').textContent = data.suspectScore || 0;
+            document.getElementById('visitorId').textContent = data.visitorId;
+            document.getElementById('requestId').textContent = data.requestId;
+            document.getElementById('confidence').textContent = data.confidence.score.toFixed(2);
+            
+            // Сигналы
+            displaySignal('vpnSignal', data.vpn);
+            displaySignal('incognitoSignal', data.incognito);
+            displaySignal('tamperingSignal', data.tampering);
+            displaySignal('botSignal', data.bot);
+            
+            // Оценка риска
+            const riskElement = document.getElementById('riskMessage');
+            let riskMessage = '';
+            
+            if (data.suspectScore === 0) {
+                riskMessage = '✅ Ваше устройство выглядит безопасно';
+                document.getElementById('score').className = 'score-value score-0';
+            } else if (data.suspectScore < 0.5) {
+                riskMessage = '⚠️ Умеренный уровень риска';
+                document.getElementById('score').className = 'score-value score-1';
+            } else {
+                riskMessage = '🚨 Высокий уровень риска';
+                document.getElementById('score').className = 'score-value score-2';
+            }
+            
+            riskElement.innerHTML = `<h3>${riskMessage}</h3>`;
+            
+            // Формируем блок с сигналами
+            const signalsContainer = document.getElementById('signals');
+            signalsContainer.innerHTML = '';
+            
+            const activeSignals = [];
+            if (data.vpn) activeSignals.push('VPN');
+            if (data.incognito) activeSignals.push('Инкогнито');
+            if (data.tampering) activeSignals.push('Подделка данных');
+            if (data.bot) activeSignals.push('Бот');
+            
+            if (activeSignals.length > 0) {
+                signalsContainer.innerHTML += `
+                    <p>Обнаружены сигналы:</p>
+                    <div style="margin-top: 10px;">
+                        ${activeSignals.map(s => `<span class="signal signal-true">${s}</span>`).join(' ')}
+                    </div>
+                `;
+            } else {
+                signalsContainer.innerHTML = `<p>⛔ Активных сигналов угроз не обнаружено</p>`;
+            }
+            
+            // Показываем результат
+            document.getElementById('loader').classList.add('hidden');
+            document.getElementById('result').classList.remove('hidden');
+        }
+        
+        // Форматирование сигналов
+        function displaySignal(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (value) {
+                element.textContent = 'Да';
+                element.className = 'signal signal-true';
+            } else {
+                element.textContent = 'Нет';
+                element.className = 'signal signal-false';
+            }
+        }
+    </script>
+</body>
+</html>
