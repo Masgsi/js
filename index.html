@@ -1,261 +1,84 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suspect Score Checker</title>
+    <title>Suspect Score</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
-            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: #f5f5f5;
         }
         .container {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
-            padding: 30px;
-            margin-top: 40px;
             text-align: center;
-        }
-        h1 {
-            color: #2c3e50;
-            margin-bottom: 10px;
-        }
-        .subtitle {
-            color: #7f8c8d;
-            margin-bottom: 40px;
-        }
-        .result-box {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 25px;
-            margin: 30px 0;
-            transition: all 0.3s ease;
-        }
-        .score-value {
-            font-size: 72px;
-            font-weight: 800;
-            margin: 20px 0;
-            transition: color 0.3s;
-        }
-        .score-0 { color: #2ecc71; } /* Зеленый */
-        .score-1 { color: #f39c12; } /* Желтый */
-        .score-2 { color: #e74c3c; } /* Красный */
-        .details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 30px;
-            text-align: left;
-        }
-        .detail-card {
             background: white;
+            padding: 2rem;
             border-radius: 10px;
-            padding: 15px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.03);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
-        .loader {
-            width: 50px;
-            height: 50px;
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #3498db;
-            border-radius: 50%;
-            margin: 30px auto;
-            animation: spin 1s linear infinite;
+        #score {
+            font-size: 5rem;
+            font-weight: bold;
+            margin: 1rem 0;
+            color: #2c3e50;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .hidden {
-            display: none;
-        }
-        .signal {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 14px;
-            margin: 0 5px;
-        }
-        .signal-true {
-            background-color: #ffebe9;
-            color: #cf222e;
-        }
-        .signal-false {
-            background-color: #e6f7f0;
-            color: #1a7f37;
-        }
-        footer {
-            margin-top: 40px;
+        .loading {
             color: #7f8c8d;
-            font-size: 14px;
         }
-        .signal-info {
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            font-size: 14px;
+        .error {
+            color: #e74c3c;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Suspect Score Checker</h1>
-        <p class="subtitle">Анализ подозрительной активности в реальном времени</p>
-        
-        <div id="loader" class="loader"></div>
-        
-        <div id="result" class="hidden">
-            <div class="result-box">
-                <h2>Ваш Suspect Score</h2>
-                <div id="score" class="score-value">0</div>
-                <div id="riskMessage"></div>
-            </div>
-            
-            <div class="details">
-                <div class="detail-card">
-                    <h3>Основные данные</h3>
-                    <p><strong>Visitor ID:</strong> <span id="visitorId"></span></p>
-                    <p><strong>Request ID:</strong> <span id="requestId"></span></p>
-                    <p><strong>Стабильность ID:</strong> <span id="confidence"></span></p>
-                </div>
-                
-                <div class="detail-card">
-                    <h3>Smart Signals</h3>
-                    <div id="signalsContainer"></div>
-                </div>
-            </div>
-            
-            <div class="signal-info">
-                <p>Suspect Score показывает уровень риска на основе обнаруженных сигналов:</p>
-                <p>0 = Нет риска, 1-49 = Низкий риск, 50-100 = Высокий риск</p>
-            </div>
-        </div>
-        
-        <footer>
-            <p>Проверка выполняется с помощью FingerprintJS Pro • Данные обновляются при каждом посещении</p>
-        </footer>
+        <h1>Current Session Suspect Score</h1>
+        <div id="score" class="loading">Loading...</div>
+        <div id="details"></div>
     </div>
 
-    <script>
-        // Конфигурация с ВАШИМ API ключом
-        const FP_API_KEY = 'Ki8goVOk05JAcbWpUsmw';
-        
-        // Инициализация при загрузке страницы
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                // Динамический импорт SDK
-                const FingerprintJS = await import(`https://fpjscdn.net/v3/${FP_API_KEY}`);
+    <script type="module">
+        // Инициализация агента
+        const fpPromise = import('https://fpjscdn.net/v3/Ki8goVOk05JAcbWpUsmw')
+            .then(FingerprintJS => FingerprintJS.load({
+                region: "eu"
+            }));
+
+        // Получаем расширенный результат с Smart Signals
+        fpPromise
+            .then(fp => fp.get({
+                extendedResult: true,
+                timeout: 5000  // Таймаут 5 секунд
+            }))
+            .then(result => {
+                console.log("Fingerprint result:", result);
                 
-                // Загружаем агент
-                const fp = await FingerprintJS.load({
-                    region: 'eu'
-                });
-                
-                // Получаем данные с расширенной информацией
-                const result = await fp.get({
-                    extendedResult: true
-                });
-                
-                // Показываем результат
-                displayResults(result);
-            } catch (error) {
-                console.error('Ошибка FingerprintJS:', error);
-                document.getElementById('loader').classList.add('hidden');
-                document.getElementById('result').innerHTML = `
-                    <div class="error">
-                        <h2>Ошибка проверки</h2>
-                        <p>${error.message}</p>
-                        <p>Попробуйте обновить страницу</p>
-                    </div>
-                `;
-                document.getElementById('result').classList.remove('hidden');
-            }
-        });
-        
-        // Отображение результатов
-        function displayResults(data) {
-            // Преобразуем Suspect Score в проценты (0-100)
-            const suspectScore = Math.round((data.suspectScore || 0) * 100);
-            
-            // Основные данные
-            document.getElementById('score').textContent = suspectScore;
-            document.getElementById('visitorId').textContent = data.visitorId;
-            document.getElementById('requestId').textContent = data.requestId;
-            
-            // Стабильность ID
-            if (data.confidence && data.confidence.score) {
-                document.getElementById('confidence').textContent = data.confidence.score.toFixed(2);
-            } else {
-                document.getElementById('confidence').textContent = 'N/A';
-            }
-            
-            // Оценка риска
-            const riskElement = document.getElementById('riskMessage');
-            let riskMessage = '';
-            
-            if (suspectScore === 0) {
-                riskMessage = '✅ Нет признаков подозрительной активности';
-                document.getElementById('score').className = 'score-value score-0';
-            } else if (suspectScore < 50) {
-                riskMessage = '⚠️ Обнаружены признаки умеренного риска';
-                document.getElementById('score').className = 'score-value score-1';
-            } else {
-                riskMessage = '🚨 Обнаружены признаки высокого риска!';
-                document.getElementById('score').className = 'score-value score-2';
-            }
-            
-            riskElement.innerHTML = `<h3>${riskMessage}</h3>`;
-            
-            // Формируем блок с сигналами
-            const signalsContainer = document.getElementById('signalsContainer');
-            signalsContainer.innerHTML = '';
-            
-            // Все возможные сигналы
-            const allSignals = [
-                { id: 'vpn', name: 'VPN', value: data.vpn },
-                { id: 'incognito', name: 'Режим инкогнито', value: data.incognito },
-                { id: 'tampering', name: 'Подделка данных', value: data.tampering },
-                { id: 'bot', name: 'Бот', value: data.bot },
-                { id: 'emulator', name: 'Эмулятор', value: data.emulator },
-                { id: 'proxy', name: 'Прокси', value: data.proxy },
-                { id: 'factoryReset', name: 'Сброс настроек', value: data.factoryReset },
-                { id: 'jailbroken', name: 'Jailbreak', value: data.jailbroken },
-                { id: 'frida', name: 'Frida', value: data.frida }
-            ];
-            
-            // Отображаем только те сигналы, которые есть в данных
-            allSignals.forEach(signal => {
-                if (signal.value !== undefined) {
-                    const signalElement = document.createElement('p');
-                    signalElement.innerHTML = `<strong>${signal.name}:</strong> `;
+                // Проверяем наличие Suspect Score
+                if (result.suspectScore && typeof result.suspectScore.data.result === 'number') {
+                    document.getElementById('score').innerText = result.suspectScore.data.result;
+                    document.getElementById('score').className = '';
                     
-                    const valueSpan = document.createElement('span');
-                    valueSpan.textContent = signal.value ? 'Обнаружено' : 'Не обнаружено';
-                    valueSpan.className = signal.value ? 'signal signal-true' : 'signal signal-false';
-                    
-                    signalElement.appendChild(valueSpan);
-                    signalsContainer.appendChild(signalElement);
+                    // Дополнительная информация (опционально)
+                    document.getElementById('details').innerHTML = `
+                        <p>Session ID: ${result.requestId}</p>
+                        <p>Detected at: ${new Date().toLocaleTimeString()}</p>
+                    `;
+                } else {
+                    throw new Error('Suspect Score not available');
                 }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                document.getElementById('score').innerText = 'Error';
+                document.getElementById('score').className = 'error';
+                document.getElementById('details').innerText = 
+                    error.message || 'Failed to load Suspect Score';
             });
-            
-            // Если нет ни одного сигнала
-            if (signalsContainer.children.length === 0) {
-                signalsContainer.innerHTML = '<p>⛔ Активных сигналов не обнаружено</p>';
-            }
-            
-            // Показываем результат
-            document.getElementById('loader').classList.add('hidden');
-            document.getElementById('result').classList.remove('hidden');
-            
-            // Выводим полные данные в консоль для отладки
-            console.log('FingerprintJS Pro Full Result:', data);
-        }
     </script>
 </body>
 </html>
