@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fraud Score Checker</title>
+    <title>Suspect Score Checker</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -94,31 +94,27 @@
             color: #7f8c8d;
             font-size: 14px;
         }
-        .warning {
-            background-color: #fff8e6;
-            border-left: 4px solid #ffc107;
-            padding: 15px;
-            margin: 20px 0;
-            text-align: left;
+        .signal-info {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Fraud Score Checker</h1>
-        <p class="subtitle">Точный анализ рисков в реальном времени</p>
+        <h1>Suspect Score Checker</h1>
+        <p class="subtitle">Анализ подозрительной активности в реальном времени</p>
         
         <div id="loader" class="loader"></div>
         
         <div id="result" class="hidden">
             <div class="result-box">
-                <h2>Ваш Fraud Score</h2>
+                <h2>Ваш Suspect Score</h2>
                 <div id="score" class="score-value">0</div>
-                
-                <div class="risk-assessment">
-                    <div id="riskMessage"></div>
-                    <div id="signals" style="margin-top: 20px;"></div>
-                </div>
+                <div id="riskMessage"></div>
             </div>
             
             <div class="details">
@@ -130,18 +126,14 @@
                 </div>
                 
                 <div class="detail-card">
-                    <h3>Сигналы</h3>
-                    <p><strong>VPN:</strong> <span id="vpnSignal" class="signal"></span></p>
-                    <p><strong>Инкогнито:</strong> <span id="incognitoSignal" class="signal"></span></p>
-                    <p><strong>Подделка данных:</strong> <span id="tamperingSignal" class="signal"></span></p>
-                    <p><strong>Бот:</strong> <span id="botSignal" class="signal"></span></p>
+                    <h3>Smart Signals</h3>
+                    <div id="signalsContainer"></div>
                 </div>
             </div>
             
-            <div class="warning">
-                <h3>Важная информация</h3>
-                <p>Suspect Score в API представлен в диапазоне 0-1 (дробное число), но в панели управления отображается как 0-100 (проценты).</p>
-                <p>Например: 0.04 в API = 4% в панели управления</p>
+            <div class="signal-info">
+                <p>Suspect Score показывает уровень риска на основе обнаруженных сигналов:</p>
+                <p>0 = Нет риска, 1-49 = Низкий риск, 50-100 = Высокий риск</p>
             </div>
         </div>
         
@@ -188,71 +180,73 @@
         
         // Отображение результатов
         function displayResults(data) {
-            // Основные данные
-            const suspectScore = data.suspectScore || 0;
-            const suspectScorePercent = Math.round(suspectScore * 100);
+            // Преобразуем Suspect Score в проценты (0-100)
+            const suspectScore = Math.round((data.suspectScore || 0) * 100);
             
-            document.getElementById('score').textContent = suspectScorePercent;
+            // Основные данные
+            document.getElementById('score').textContent = suspectScore;
             document.getElementById('visitorId').textContent = data.visitorId;
             document.getElementById('requestId').textContent = data.requestId;
             
-            // Проверяем наличие confidence
+            // Стабильность ID
             if (data.confidence && data.confidence.score) {
                 document.getElementById('confidence').textContent = data.confidence.score.toFixed(2);
             } else {
                 document.getElementById('confidence').textContent = 'N/A';
             }
             
-            // Проверяем наличие smart signals
-            const vpn = data.vpn ? data.vpn : false;
-            const incognito = data.incognito ? data.incognito : false;
-            const tampering = data.tampering ? data.tampering : false;
-            const bot = data.bot ? data.bot : false;
-            
-            // Сигналы
-            displaySignal('vpnSignal', vpn);
-            displaySignal('incognitoSignal', incognito);
-            displaySignal('tamperingSignal', tampering);
-            displaySignal('botSignal', bot);
-            
             // Оценка риска
             const riskElement = document.getElementById('riskMessage');
             let riskMessage = '';
             
-            if (suspectScorePercent === 0) {
-                riskMessage = '✅ Ваше устройство выглядит безопасно';
+            if (suspectScore === 0) {
+                riskMessage = '✅ Нет признаков подозрительной активности';
                 document.getElementById('score').className = 'score-value score-0';
-            } else if (suspectScorePercent < 50) {
-                riskMessage = '⚠️ Умеренный уровень риска';
+            } else if (suspectScore < 50) {
+                riskMessage = '⚠️ Обнаружены признаки умеренного риска';
                 document.getElementById('score').className = 'score-value score-1';
             } else {
-                riskMessage = '🚨 Высокий уровень риска';
+                riskMessage = '🚨 Обнаружены признаки высокого риска!';
                 document.getElementById('score').className = 'score-value score-2';
             }
             
             riskElement.innerHTML = `<h3>${riskMessage}</h3>`;
             
             // Формируем блок с сигналами
-            const signalsContainer = document.getElementById('signals');
+            const signalsContainer = document.getElementById('signalsContainer');
             signalsContainer.innerHTML = '';
             
-            const activeSignals = [];
-            if (vpn) activeSignals.push('VPN');
-            if (incognito) activeSignals.push('Инкогнито');
-            if (tampering) activeSignals.push('Подделка данных');
-            if (bot) activeSignals.push('Бот');
+            // Все возможные сигналы
+            const allSignals = [
+                { id: 'vpn', name: 'VPN', value: data.vpn },
+                { id: 'incognito', name: 'Режим инкогнито', value: data.incognito },
+                { id: 'tampering', name: 'Подделка данных', value: data.tampering },
+                { id: 'bot', name: 'Бот', value: data.bot },
+                { id: 'emulator', name: 'Эмулятор', value: data.emulator },
+                { id: 'proxy', name: 'Прокси', value: data.proxy },
+                { id: 'factoryReset', name: 'Сброс настроек', value: data.factoryReset },
+                { id: 'jailbroken', name: 'Jailbreak', value: data.jailbroken },
+                { id: 'frida', name: 'Frida', value: data.frida }
+            ];
             
-            if (activeSignals.length > 0) {
-                signalsContainer.innerHTML += `
-                    <p>Обнаружены сигналы:</p>
-                    <div style="margin-top: 10px;">
-                        ${activeSignals.map(s => `<span class="signal signal-true">${s}</span>`).join(' ')}
-                    </div>
-                `;
-            } else if (suspectScorePercent > 0) {
-                signalsContainer.innerHTML = `<p>🔍 Обнаружены скрытые сигналы риска</p>`;
-            } else {
-                signalsContainer.innerHTML = `<p>⛔ Активных сигналов угроз не обнаружено</p>`;
+            // Отображаем только те сигналы, которые есть в данных
+            allSignals.forEach(signal => {
+                if (signal.value !== undefined) {
+                    const signalElement = document.createElement('p');
+                    signalElement.innerHTML = `<strong>${signal.name}:</strong> `;
+                    
+                    const valueSpan = document.createElement('span');
+                    valueSpan.textContent = signal.value ? 'Обнаружено' : 'Не обнаружено';
+                    valueSpan.className = signal.value ? 'signal signal-true' : 'signal signal-false';
+                    
+                    signalElement.appendChild(valueSpan);
+                    signalsContainer.appendChild(signalElement);
+                }
+            });
+            
+            // Если нет ни одного сигнала
+            if (signalsContainer.children.length === 0) {
+                signalsContainer.innerHTML = '<p>⛔ Активных сигналов не обнаружено</p>';
             }
             
             // Показываем результат
@@ -261,18 +255,6 @@
             
             // Выводим полные данные в консоль для отладки
             console.log('FingerprintJS Pro Full Result:', data);
-        }
-        
-        // Форматирование сигналов
-        function displaySignal(elementId, value) {
-            const element = document.getElementById(elementId);
-            if (value) {
-                element.textContent = 'Да';
-                element.className = 'signal signal-true';
-            } else {
-                element.textContent = 'Нет';
-                element.className = 'signal signal-false';
-            }
         }
     </script>
 </body>
